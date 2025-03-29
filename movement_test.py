@@ -1,14 +1,16 @@
 import cv2
 import mediapipe as mp
-from pynput.keyboard import Controller, Key
+from pynput.keyboard import Controller as KeyboardController, Key
+from pynput.mouse import Button, Controller as MouseController
 import math
 import json
 
-# Initialize MediaPipe Pose and keyboard controller
+# Initialize MediaPipe Pose and controllers
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose()
 mp_drawing = mp.solutions.drawing_utils
-keyboard = Controller()
+keyboard = KeyboardController()
+mouse = MouseController()
 
 def load_keybindings():
     try:
@@ -32,17 +34,32 @@ def load_toggles():
     except FileNotFoundError:
         return {key: True for key in load_keybindings().keys()}
 
-def get_key(key_name):
-    """Convert key name to actual key command"""
-    special_keys = {
-        "left": Key.left,
-        "right": Key.right,
-        "down": Key.down,
-        "space": Key.space,
-        "shift": Key.shift,
-        "up": Key.up
-    }
-    return special_keys.get(key_name.lower(), key_name)
+def perform_action(action_name, press=True):
+    """Handle both keyboard and mouse actions"""
+    if action_name in ["left_click", "right_click", "middle_click"]:
+        # Mouse actions
+        button_map = {
+            "left_click": Button.left,
+            "right_click": Button.right,
+            "middle_click": Button.middle
+        }
+        if press:
+            mouse.click(button_map[action_name])
+    else:
+        # Keyboard actions
+        key_map = {
+            "left": Key.left,
+            "right": Key.right,
+            "down": Key.down,
+            "space": Key.space,
+            "shift": Key.shift,
+            "up": Key.up
+        }
+        key = key_map.get(action_name.lower(), action_name)
+        if press:
+            keyboard.press(key)
+        else:
+            keyboard.release(key)
 
 # Load keybindings and toggles
 keybindings = load_keybindings()
@@ -58,35 +75,24 @@ tiltLock = False
 spaceLock = False
 
 def calculate_head_tilt(landmarks):
-    # Get the coordinates of the ears
-    left_ear = landmarks[4]  # Left ear (landmark index 4)
-    right_ear = landmarks[1]  # Right ear (landmark index 1)
-
-    # Calculate the difference in y and x coordinates
+    left_ear = landmarks[4]
+    right_ear = landmarks[1]
     delta_y = right_ear.y - left_ear.y
     delta_x = right_ear.x - left_ear.x
-
-    # Calculate the angle in radians
     angle_radians = math.atan2(delta_y, delta_x)
-
-    # Convert radians to degrees
     angle_degrees = math.degrees(angle_radians)
-
     return angle_degrees
 
 def detect_knee_clap(landmarks):
-    if not toggles["knee_clap"]:  # Skip if disabled
+    if not toggles["knee_clap"]:
         return
 
     left_knee = landmarks[25]
     right_knee = landmarks[26]
-
     knee_distance = abs(left_knee.x - right_knee.x)
 
     if knee_distance < 0.05:
-        key = get_key(keybindings["knee_clap"])
-        keyboard.press(key)
-        keyboard.release(key)
+        perform_action(keybindings["knee_clap"], True)
         print(f"Knee clap: {keybindings['knee_clap']}")
 
 def check_head_tilt(landmarks, neutral_angle):
@@ -119,74 +125,64 @@ while cap.isOpened():
         neutral_angle, tilt_status = check_head_tilt(landmarks, neutral_angle)
 
         # Left arm bent
-        if toggles["left_arm_bend"]:  # Only process if enabled
+        if toggles["left_arm_bend"]:
             left_shoulder = [landmarks[11].x, landmarks[11].y]
             left_elbow = [landmarks[13].x, landmarks[13].y]
             left_wrist = [landmarks[15].x, landmarks[15].y]
             left_arm_angle = calculate_angle(left_shoulder, left_elbow, left_wrist)
 
-            left_key = get_key(keybindings["left_arm_bend"])
             if left_arm_angle < 60:
-                keyboard.press(left_key)
+                perform_action(keybindings["left_arm_bend"], True)
                 print(f"Left arm: {keybindings['left_arm_bend']}")
             else:
-                keyboard.release(left_key)
+                perform_action(keybindings["left_arm_bend"], False)
 
         # Right arm bent
-        if toggles["right_arm_bend"]:  # Only process if enabled
+        if toggles["right_arm_bend"]:
             right_shoulder = [landmarks[12].x, landmarks[12].y]
             right_elbow = [landmarks[14].x, landmarks[14].y]
             right_wrist = [landmarks[16].x, landmarks[16].y]
             right_arm_angle = calculate_angle(right_shoulder, right_elbow, right_wrist)
 
-            right_key = get_key(keybindings["right_arm_bend"])
             if right_arm_angle < 60:
-                keyboard.press(right_key)
+                perform_action(keybindings["right_arm_bend"], True)
                 print(f"Right arm: {keybindings['right_arm_bend']}")
             else:
-                keyboard.release(right_key)
+                perform_action(keybindings["right_arm_bend"], False)
 
         cv2.putText(frame, tilt_status, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
         # Head tilt controls
         if tilt_status == "tiltLeft" and not tiltLock and toggles["tilt_left"]:
             tiltLock = True
-            tilt_left_key = get_key(keybindings["tilt_left"])
-            keyboard.press(tilt_left_key)
-            keyboard.release(tilt_left_key)
+            perform_action(keybindings["tilt_left"], True)
             print(f"Tilt left: {keybindings['tilt_left']}")
         elif tilt_status == "tiltRight" and not tiltLock and toggles["tilt_right"]:
             tiltLock = True
-            tilt_right_key = get_key(keybindings["tilt_right"])
-            keyboard.press(tilt_right_key)
-            keyboard.release(tilt_right_key)
+            perform_action(keybindings["tilt_right"], True)
             print(f"Tilt right: {keybindings['tilt_right']}")
         elif tilt_status == "tiltCenter" and tiltLock:
             tiltLock = False
 
-        # Jump and squat controls
+        # Get landmarks for jump and squat
         left_hip_y = landmarks[23].y
         right_hip_y = landmarks[24].y
         left_knee_y = landmarks[25].y
         right_knee_y = landmarks[26].y
 
         # Jump (right knee raised)
-        if toggles["jump"]:  # Only process if enabled
-            jump_key = get_key(keybindings["jump"])
+        if toggles["jump"]:
             if right_knee_y < right_hip_y and not spaceLock:
                 spaceLock = True
-                keyboard.press(jump_key)
-                keyboard.release(jump_key)
+                perform_action(keybindings["jump"], True)
                 print(f"Jump: {keybindings['jump']}")
             elif right_knee_y > right_hip_y:
                 spaceLock = False
 
         # Squat (left knee bent)
-        if toggles["squat"]:  # Only process if enabled
-            squat_key = get_key(keybindings["squat"])
+        if toggles["squat"]:
             if left_knee_y < left_hip_y:
-                keyboard.press(squat_key)
-                keyboard.release(squat_key)
+                perform_action(keybindings["squat"], True)
                 print(f"Squat: {keybindings['squat']}")
 
         detect_knee_clap(landmarks)

@@ -20,6 +20,12 @@ class KeyBindingGUI:
             "knee_clap": "shift"
         }
 
+        # Add dropdown options for mouse and keyboard
+        self.input_options = {
+            "keyboard": ["left", "right", "up", "down", "space", "shift", "z", "x"],
+            "mouse": ["left_click", "right_click", "middle_click"]
+        }
+
         # Default toggle states (all enabled by default)
         self.default_toggles = {key: True for key in self.default_bindings.keys()}
 
@@ -41,6 +47,9 @@ class KeyBindingGUI:
             "knee_clap": "Knee Clap"
         }
 
+        # Combine all input options for the dropdown
+        all_options = self.input_options["keyboard"] + self.input_options["mouse"]
+
         for key, description in movements.items():
             frame = ttk.Frame(self.root, padding="5")
             frame.pack(fill=tk.X, padx=5, pady=2)
@@ -48,11 +57,11 @@ class KeyBindingGUI:
             # Label for the movement
             ttk.Label(frame, text=description).pack(side=tk.LEFT)
 
-            # Entry for the keybinding
-            entry = ttk.Entry(frame, width=10)
-            entry.insert(0, self.current_bindings[key])
-            entry.pack(side=tk.LEFT, padx=5)
-            setattr(self, f"entry_{key}", entry)
+            # Dropdown for input selection
+            combo = ttk.Combobox(frame, values=all_options, width=15)
+            combo.set(self.current_bindings[key])
+            combo.pack(side=tk.LEFT, padx=5)
+            setattr(self, f"combo_{key}", combo)
 
             # Toggle button (Checkbutton) for enabling/disabling the action
             toggle_var = tk.BooleanVar(value=self.current_toggles[key])
@@ -76,8 +85,8 @@ class KeyBindingGUI:
     def save_config(self):
         # Update current bindings and toggles from entries
         for key in self.default_bindings.keys():
-            entry = getattr(self, f"entry_{key}")
-            self.current_bindings[key] = entry.get()
+            combo = getattr(self, f"combo_{key}")
+            self.current_bindings[key] = combo.get()
 
             toggle_var = getattr(self, f"toggle_{key}")
             self.current_toggles[key] = toggle_var.get()
@@ -106,9 +115,8 @@ class KeyBindingGUI:
     def reset_to_defaults(self):
         # Reset all entries and toggles to default values
         for key, value in self.default_bindings.items():
-            entry = getattr(self, f"entry_{key}")
-            entry.delete(0, tk.END)
-            entry.insert(0, value)
+            combo = getattr(self, f"combo_{key}")
+            combo.set(value)
 
             toggle_var = getattr(self, f"toggle_{key}")
             toggle_var.set(self.default_toggles[key])
