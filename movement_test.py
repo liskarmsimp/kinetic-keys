@@ -78,7 +78,7 @@ def calculate_angle(a, b, c):
 keybindings = load_keybindings()
 toggles = load_toggles()
 
-cap = cv2.VideoCapture(0)  # Use camera index 1 (Mac's built-in webcam)
+cap = cv2.VideoCapture(1)  # Use camera index 1 (Mac's built-in webcam)
 neutral_angle = 0
 threshold = 30
 tiltLock = False
