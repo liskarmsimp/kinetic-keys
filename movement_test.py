@@ -10,7 +10,7 @@ pose = mp_pose.Pose()
 mp_drawing = mp.solutions.drawing_utils
 keyboard = Controller()
 
-cap = cv2.VideoCapture(1)  # Use camera index 1 (Mac's built-in webcam)
+cap = cv2.VideoCapture(0)  # Use camera index 1 (Mac's built-in webcam), 0 for windows
 neutral_angle = 0  # This will store the neutral position's angle
 
 
@@ -69,7 +69,6 @@ def calculate_head_tilt(landmarks):
 
     return angle_degrees
 
-
 def detect_knee_clap(landmarks):
     left_knee = landmarks[25]  # Adjust index if needed
     right_knee = landmarks[26]
@@ -100,6 +99,10 @@ def calculate_angle(a, b, c):
     radians = math.atan2(c[1] - b[1], c[0] - b[0]) - math.atan2(a[1] - b[1], a[0] - b[0])
     angle = abs(radians * 180.0 / math.pi)
     return angle if angle <= 180 else 360 - angle
+
+if not cap.isOpened():
+    print("Error: Could not open webcam.")
+    exit()
 
 
 while cap.isOpened():
