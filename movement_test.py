@@ -2,6 +2,7 @@ import cv2
 import mediapipe as mp
 from pynput.keyboard import Controller, Key
 import math
+import json
 
 # Initialize MediaPipe Pose and keyboard controller
 mp_pose = mp.solutions.pose
