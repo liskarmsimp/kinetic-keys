@@ -17,21 +17,39 @@ class KeyBindingGUI:
             "tilt_right": "x",
             "jump": "space",
             "squat": "down",
-            "knee_clap": "shift"
+            "knee_clap": "shift",
+            "arm_raised": "mouse_up",    # Add this new movement
+            "arm_lowered": "mouse_down"  # Add this new movement
         }
 
         # Add dropdown options for mouse and keyboard
         self.input_options = {
             "keyboard": ["left", "right", "up", "down", "space", "shift", "z", "x"],
-            "mouse": ["left_click", "right_click", "middle_click"]
+            "mouse": ["left_click", "right_click", "middle_click", "mouse_up", "mouse_down", "mouse_left", "mouse_right"]
         }
+
+        # Load existing config or use defaults
+        self.current_bindings = self.load_config()
+        if self.current_bindings is None:
+            self.current_bindings = self.default_bindings.copy()
+        else:
+            # Add any missing keys from default_bindings to current_bindings
+            for key in self.default_bindings:
+                if key not in self.current_bindings:
+                    self.current_bindings[key] = self.default_bindings[key]
 
         # Default toggle states (all enabled by default)
         self.default_toggles = {key: True for key in self.default_bindings.keys()}
-
-        # Load existing config or use defaults
-        self.current_bindings = self.load_config() or self.default_bindings.copy()
-        self.current_toggles = self.load_toggles() or self.default_toggles.copy()
+        
+        # Load existing toggles or use defaults
+        self.current_toggles = self.load_toggles()
+        if self.current_toggles is None:
+            self.current_toggles = self.default_toggles.copy()
+        else:
+            # Add any missing keys from default_toggles to current_toggles
+            for key in self.default_toggles:
+                if key not in self.current_toggles:
+                    self.current_toggles[key] = self.default_toggles[key]
 
         self.create_widgets()
 
@@ -44,7 +62,9 @@ class KeyBindingGUI:
             "tilt_right": "Tilt Head Right",
             "jump": "Jump (Right Knee Raise)",
             "squat": "Squat",
-            "knee_clap": "Knee Clap"
+            "knee_clap": "Knee Clap",
+            "arm_raised": "Arm Raised Position",    # Add this new movement
+            "arm_lowered": "Arm Lowered Position"  # Add this new movement
         }
 
         # Combine all input options for the dropdown
@@ -59,12 +79,12 @@ class KeyBindingGUI:
 
             # Dropdown for input selection
             combo = ttk.Combobox(frame, values=all_options, width=15)
-            combo.set(self.current_bindings[key])
+            combo.set(self.current_bindings.get(key, self.default_bindings[key]))  # Use get() with default value
             combo.pack(side=tk.LEFT, padx=5)
             setattr(self, f"combo_{key}", combo)
 
             # Toggle button (Checkbutton) for enabling/disabling the action
-            toggle_var = tk.BooleanVar(value=self.current_toggles[key])
+            toggle_var = tk.BooleanVar(value=self.current_toggles.get(key, True))  # Use get() with default value
             toggle_button = ttk.Checkbutton(
                 frame,
                 text="Enable",
