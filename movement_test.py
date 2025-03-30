@@ -5,6 +5,8 @@ from pynput.mouse import Button
 from pynput.mouse import Controller as MouseController
 import math
 import json
+import time
+from collections import defaultdict
 
 # Initialize MediaPipe Pose and controllers
 mp_pose = mp.solutions.pose
@@ -12,6 +14,11 @@ pose = mp_pose.Pose()
 mp_drawing = mp.solutions.drawing_utils
 keyboard = Controller()
 mouse = MouseController()
+
+# Initialize timing and state tracking
+last_action_time = defaultdict(float)  # Store last action time for each movement
+cooldown = 0.3  # 0.3 seconds cooldown
+previous_states = defaultdict(bool)  # Store previous states of movements
 
 def load_keybindings():
     try:
@@ -84,6 +91,30 @@ def calculate_angle(a, b, c):
     angle = abs(radians * 180.0 / math.pi)
     return angle if angle <= 180 else 360 - angle
 
+def can_perform_action(action_name, current_time, bypass_cooldown=False):
+    """Check if enough time has passed to perform the action again"""
+    if bypass_cooldown:  # For space bar (jump)
+        return True
+    time_since_last = current_time - last_action_time[action_name]
+    return time_since_last >= cooldown
+
+def detect_head_tilt(nose, left_ear, right_ear):
+    """
+    Detect head tilt by comparing nose position relative to ears
+    Returns: 'left', 'right', or None
+    """
+    # Calculate the midpoint between ears
+    ear_midpoint_x = (left_ear[0] + right_ear[0]) / 2
+
+    # Calculate how far the nose is from the midpoint
+    tilt_threshold = 0.05  # Adjust this value to change sensitivity
+
+    if nose[0] < (ear_midpoint_x - tilt_threshold):
+        return 'left'
+    elif nose[0] > (ear_midpoint_x + tilt_threshold):
+        return 'right'
+    return None
+
 # Load keybindings and toggles
 keybindings = load_keybindings()
 toggles = load_toggles()
@@ -101,6 +132,7 @@ while cap.isOpened():
 
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     results = pose.process(frame_rgb)
+    current_time = time.time()
 
     if results.pose_landmarks:
         mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
@@ -114,7 +146,10 @@ while cap.isOpened():
                 left_wrist = [landmarks[15].x, landmarks[15].y]
                 left_arm_angle = calculate_angle(left_shoulder, left_elbow, left_wrist)
 
-                if left_arm_angle < 60:
+                is_bent = left_arm_angle < 60
+                was_bent = previous_states["left_arm_bend"]
+
+                if is_bent and not was_bent and can_perform_action("left_arm_bend", current_time):
                     if keybindings["left_arm_bend"].endswith("_click"):
                         mouse.press(get_key(keybindings["left_arm_bend"]))
                         print(f"Mouse click: {keybindings['left_arm_bend']}")
@@ -126,12 +161,15 @@ while cap.isOpened():
                         left_key = get_key(keybindings["left_arm_bend"])
                         keyboard.press(left_key)
                         print(f"Left arm: {keybindings['left_arm_bend']}")
-                else:
+                    last_action_time["left_arm_bend"] = current_time
+                elif not is_bent and was_bent:
                     if keybindings["left_arm_bend"].endswith("_click"):
                         mouse.release(get_key(keybindings["left_arm_bend"]))
                     elif not keybindings["left_arm_bend"].startswith("mouse_"):
                         left_key = get_key(keybindings["left_arm_bend"])
                         keyboard.release(left_key)
+
+                previous_states["left_arm_bend"] = is_bent
             except (AttributeError, IndexError):
                 pass
 
@@ -143,7 +181,10 @@ while cap.isOpened():
                 right_wrist = [landmarks[16].x, landmarks[16].y]
                 right_arm_angle = calculate_angle(right_shoulder, right_elbow, right_wrist)
 
-                if right_arm_angle < 60:
+                is_bent = right_arm_angle < 60
+                was_bent = previous_states["right_arm_bend"]
+
+                if is_bent and not was_bent and can_perform_action("right_arm_bend", current_time):
                     if keybindings["right_arm_bend"].endswith("_click"):
                         mouse.press(get_key(keybindings["right_arm_bend"]))
                         print(f"Mouse click: {keybindings['right_arm_bend']}")
@@ -155,12 +196,59 @@ while cap.isOpened():
                         right_key = get_key(keybindings["right_arm_bend"])
                         keyboard.press(right_key)
                         print(f"Right arm: {keybindings['right_arm_bend']}")
-                else:
+                    last_action_time["right_arm_bend"] = current_time
+                elif not is_bent and was_bent:
                     if keybindings["right_arm_bend"].endswith("_click"):
                         mouse.release(get_key(keybindings["right_arm_bend"]))
                     elif not keybindings["right_arm_bend"].startswith("mouse_"):
                         right_key = get_key(keybindings["right_arm_bend"])
                         keyboard.release(right_key)
+
+                previous_states["right_arm_bend"] = is_bent
+            except (AttributeError, IndexError):
+                pass
+
+        # Head tilt detection
+        if toggles.get("tilt_left", False) or toggles.get("tilt_right", False):
+            try:
+                nose = [landmarks[0].x, landmarks[0].y]
+                left_ear = [landmarks[7].x, landmarks[7].y]
+                right_ear = [landmarks[8].x, landmarks[8].y]
+
+                tilt_direction = detect_head_tilt(nose, left_ear, right_ear)
+                was_tilted_left = previous_states["tilt_left"]
+                was_tilted_right = previous_states["tilt_right"]
+
+                if tilt_direction == 'left' and not was_tilted_left and can_perform_action("tilt_left", current_time):
+                    if toggles.get("tilt_left", False):
+                        if keybindings["tilt_left"].endswith("_click"):
+                            mouse.press(get_key(keybindings["tilt_left"]))
+                        elif not keybindings["tilt_left"].startswith("mouse_"):
+                            keyboard.press(get_key(keybindings["tilt_left"]))
+                        last_action_time["tilt_left"] = current_time
+                        print("Tilt left")
+                elif tilt_direction == 'right' and not was_tilted_right and can_perform_action("tilt_right", current_time):
+                    if toggles.get("tilt_right", False):
+                        if keybindings["tilt_right"].endswith("_click"):
+                            mouse.press(get_key(keybindings["tilt_right"]))
+                        elif not keybindings["tilt_right"].startswith("mouse_"):
+                            keyboard.press(get_key(keybindings["tilt_right"]))
+                        last_action_time["tilt_right"] = current_time
+                        print("Tilt right")
+                elif tilt_direction is None:
+                    if was_tilted_left and toggles.get("tilt_left", False):
+                        if keybindings["tilt_left"].endswith("_click"):
+                            mouse.release(get_key(keybindings["tilt_left"]))
+                        elif not keybindings["tilt_left"].startswith("mouse_"):
+                            keyboard.release(get_key(keybindings["tilt_left"]))
+                    if was_tilted_right and toggles.get("tilt_right", False):
+                        if keybindings["tilt_right"].endswith("_click"):
+                            mouse.release(get_key(keybindings["tilt_right"]))
+                        elif not keybindings["tilt_right"].startswith("mouse_"):
+                            keyboard.release(get_key(keybindings["tilt_right"]))
+
+                previous_states["tilt_left"] = (tilt_direction == 'left')
+                previous_states["tilt_right"] = (tilt_direction == 'right')
             except (AttributeError, IndexError):
                 pass
 
@@ -172,7 +260,10 @@ while cap.isOpened():
                 right_shoulder = landmarks[12]
                 right_wrist = landmarks[16]
 
-                if get_arm_vertical_position(left_shoulder, left_wrist) or get_arm_vertical_position(right_shoulder, right_wrist):
+                is_raised = get_arm_vertical_position(left_shoulder, left_wrist) or get_arm_vertical_position(right_shoulder, right_wrist)
+                was_raised = previous_states["arm_raised"]
+
+                if is_raised and not was_raised and can_perform_action("arm_raised", current_time):
                     if keybindings["arm_raised"].endswith("_click"):
                         mouse.press(get_key(keybindings["arm_raised"]))
                         print(f"Mouse click: {keybindings['arm_raised']}")
@@ -180,9 +271,12 @@ while cap.isOpened():
                         direction = keybindings["arm_raised"].split("_")[1]
                         move_mouse(direction)
                         print(f"Mouse {direction}")
-                else:
+                    last_action_time["arm_raised"] = current_time
+                elif not is_raised and was_raised:
                     if keybindings["arm_raised"].endswith("_click"):
                         mouse.release(get_key(keybindings["arm_raised"]))
+
+                previous_states["arm_raised"] = is_raised
             except (AttributeError, IndexError):
                 pass
 
@@ -194,7 +288,10 @@ while cap.isOpened():
                 right_shoulder = landmarks[12]
                 right_wrist = landmarks[16]
 
-                if not get_arm_vertical_position(left_shoulder, left_wrist) or not get_arm_vertical_position(right_shoulder, right_wrist):
+                is_lowered = not get_arm_vertical_position(left_shoulder, left_wrist) or not get_arm_vertical_position(right_shoulder, right_wrist)
+                was_lowered = previous_states["arm_lowered"]
+
+                if is_lowered and not was_lowered and can_perform_action("arm_lowered", current_time):
                     if keybindings["arm_lowered"].endswith("_click"):
                         mouse.press(get_key(keybindings["arm_lowered"]))
                         print(f"Mouse click: {keybindings['arm_lowered']}")
@@ -202,9 +299,12 @@ while cap.isOpened():
                         direction = keybindings["arm_lowered"].split("_")[1]
                         move_mouse(direction)
                         print(f"Mouse {direction}")
-                else:
+                    last_action_time["arm_lowered"] = current_time
+                elif not is_lowered and was_lowered:
                     if keybindings["arm_lowered"].endswith("_click"):
                         mouse.release(get_key(keybindings["arm_lowered"]))
+
+                previous_states["arm_lowered"] = is_lowered
             except (AttributeError, IndexError):
                 pass
 
@@ -214,7 +314,10 @@ while cap.isOpened():
                 right_hip_y = landmarks[24].y
                 right_knee_y = landmarks[26].y
 
-                if right_knee_y < right_hip_y and not spaceLock:
+                is_jumping = right_knee_y < right_hip_y
+                was_jumping = spaceLock
+
+                if is_jumping and not was_jumping and can_perform_action("jump", current_time, bypass_cooldown=True):
                     spaceLock = True
                     if keybindings["jump"].endswith("_click"):
                         mouse.press(get_key(keybindings["jump"]))
@@ -228,7 +331,8 @@ while cap.isOpened():
                         keyboard.press(jump_key)
                         keyboard.release(jump_key)
                         print(f"Jump: {keybindings['jump']}")
-                elif right_knee_y > right_hip_y:
+                    last_action_time["jump"] = current_time
+                elif not is_jumping and was_jumping:
                     spaceLock = False
                     if keybindings["jump"].endswith("_click"):
                         mouse.release(get_key(keybindings["jump"]))
@@ -241,7 +345,10 @@ while cap.isOpened():
                 left_hip_y = landmarks[23].y
                 left_knee_y = landmarks[25].y
 
-                if left_knee_y < left_hip_y:
+                is_squatting = left_knee_y < left_hip_y
+                was_squatting = previous_states["squat"]
+
+                if is_squatting and not was_squatting and can_perform_action("squat", current_time):
                     if keybindings["squat"].endswith("_click"):
                         mouse.press(get_key(keybindings["squat"]))
                         print(f"Mouse click: {keybindings['squat']}")
@@ -254,9 +361,12 @@ while cap.isOpened():
                         keyboard.press(squat_key)
                         keyboard.release(squat_key)
                         print(f"Squat: {keybindings['squat']}")
-                else:
+                    last_action_time["squat"] = current_time
+                elif not is_squatting and was_squatting:
                     if keybindings["squat"].endswith("_click"):
                         mouse.release(get_key(keybindings["squat"]))
+
+                previous_states["squat"] = is_squatting
             except (AttributeError, IndexError):
                 pass
 
