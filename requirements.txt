@@ -1,3 +1,13 @@
-opencv-python>=4.8.0
-mediapipe>=0.10.0
-pynput>=1.7.6
+# Core dependencies
+opencv-python>=4.8.0    # For camera capture and image processing
+mediapipe>=0.10.0       # For pose detection and tracking
+pynput>=1.7.6          # For keyboard and mouse control
+tkinter                 # For the configuration GUI (usually comes with Python)
+
+# You might already have these built-in dependencies
+# but listing them for completeness
+json                    # Built-in with Python
+math                    # Built-in with Python
+time                    # Built-in with Python
+collections            # Built-in with Python
+os                     # Built-in with Python
