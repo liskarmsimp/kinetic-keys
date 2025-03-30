@@ -1,6 +1,7 @@
 import cv2
 import mediapipe as mp
 from pynput.keyboard import Controller, Key
+from pynput.mouse import Button
 from pynput.mouse import Controller as MouseController
 import math
 import json
@@ -46,13 +47,22 @@ def get_key(key_name):
         "shift": Key.shift,
         "up": Key.up
     }
+
+    mouse_buttons = {
+        "left_click": Button.left,
+        "right_click": Button.right,
+        "middle_click": Button.middle
+    }
+
+    if key_name in mouse_buttons:
+        return mouse_buttons[key_name]
     return special_keys.get(key_name.lower(), key_name)
 
 def move_mouse(direction, amount=10):
     """Move the mouse cursor in the specified direction"""
     current_pos = mouse.position
     x, y = current_pos
-    
+
     if direction == "left":
         mouse.position = (x - amount, y)
     elif direction == "right":
@@ -96,7 +106,7 @@ while cap.isOpened():
         mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
         landmarks = results.pose_landmarks.landmark
 
-                # Left arm bend detection
+        # Left arm bend detection
         if toggles.get("left_arm_bend", False):
             try:
                 left_shoulder = [landmarks[11].x, landmarks[11].y]
@@ -105,8 +115,10 @@ while cap.isOpened():
                 left_arm_angle = calculate_angle(left_shoulder, left_elbow, left_wrist)
 
                 if left_arm_angle < 60:
-                    if keybindings["left_arm_bend"].startswith("mouse_"):
-                        # Extract direction from the keybinding (e.g., "mouse_left" -> "left")
+                    if keybindings["left_arm_bend"].endswith("_click"):
+                        mouse.press(get_key(keybindings["left_arm_bend"]))
+                        print(f"Mouse click: {keybindings['left_arm_bend']}")
+                    elif keybindings["left_arm_bend"].startswith("mouse_"):
                         direction = keybindings["left_arm_bend"].split("_")[1]
                         move_mouse(direction)
                         print(f"Mouse {direction}")
@@ -115,7 +127,9 @@ while cap.isOpened():
                         keyboard.press(left_key)
                         print(f"Left arm: {keybindings['left_arm_bend']}")
                 else:
-                    if not keybindings["left_arm_bend"].startswith("mouse_"):
+                    if keybindings["left_arm_bend"].endswith("_click"):
+                        mouse.release(get_key(keybindings["left_arm_bend"]))
+                    elif not keybindings["left_arm_bend"].startswith("mouse_"):
                         left_key = get_key(keybindings["left_arm_bend"])
                         keyboard.release(left_key)
             except (AttributeError, IndexError):
@@ -130,7 +144,10 @@ while cap.isOpened():
                 right_arm_angle = calculate_angle(right_shoulder, right_elbow, right_wrist)
 
                 if right_arm_angle < 60:
-                    if keybindings["right_arm_bend"].startswith("mouse_"):
+                    if keybindings["right_arm_bend"].endswith("_click"):
+                        mouse.press(get_key(keybindings["right_arm_bend"]))
+                        print(f"Mouse click: {keybindings['right_arm_bend']}")
+                    elif keybindings["right_arm_bend"].startswith("mouse_"):
                         direction = keybindings["right_arm_bend"].split("_")[1]
                         move_mouse(direction)
                         print(f"Mouse {direction}")
@@ -139,7 +156,9 @@ while cap.isOpened():
                         keyboard.press(right_key)
                         print(f"Right arm: {keybindings['right_arm_bend']}")
                 else:
-                    if not keybindings["right_arm_bend"].startswith("mouse_"):
+                    if keybindings["right_arm_bend"].endswith("_click"):
+                        mouse.release(get_key(keybindings["right_arm_bend"]))
+                    elif not keybindings["right_arm_bend"].startswith("mouse_"):
                         right_key = get_key(keybindings["right_arm_bend"])
                         keyboard.release(right_key)
             except (AttributeError, IndexError):
@@ -152,12 +171,18 @@ while cap.isOpened():
                 left_wrist = landmarks[15]
                 right_shoulder = landmarks[12]
                 right_wrist = landmarks[16]
-                
+
                 if get_arm_vertical_position(left_shoulder, left_wrist) or get_arm_vertical_position(right_shoulder, right_wrist):
-                    if keybindings["arm_raised"].startswith("mouse_"):
+                    if keybindings["arm_raised"].endswith("_click"):
+                        mouse.press(get_key(keybindings["arm_raised"]))
+                        print(f"Mouse click: {keybindings['arm_raised']}")
+                    elif keybindings["arm_raised"].startswith("mouse_"):
                         direction = keybindings["arm_raised"].split("_")[1]
                         move_mouse(direction)
                         print(f"Mouse {direction}")
+                else:
+                    if keybindings["arm_raised"].endswith("_click"):
+                        mouse.release(get_key(keybindings["arm_raised"]))
             except (AttributeError, IndexError):
                 pass
 
@@ -168,12 +193,18 @@ while cap.isOpened():
                 left_wrist = landmarks[15]
                 right_shoulder = landmarks[12]
                 right_wrist = landmarks[16]
-                
+
                 if not get_arm_vertical_position(left_shoulder, left_wrist) or not get_arm_vertical_position(right_shoulder, right_wrist):
-                    if keybindings["arm_lowered"].startswith("mouse_"):
+                    if keybindings["arm_lowered"].endswith("_click"):
+                        mouse.press(get_key(keybindings["arm_lowered"]))
+                        print(f"Mouse click: {keybindings['arm_lowered']}")
+                    elif keybindings["arm_lowered"].startswith("mouse_"):
                         direction = keybindings["arm_lowered"].split("_")[1]
                         move_mouse(direction)
                         print(f"Mouse {direction}")
+                else:
+                    if keybindings["arm_lowered"].endswith("_click"):
+                        mouse.release(get_key(keybindings["arm_lowered"]))
             except (AttributeError, IndexError):
                 pass
 
@@ -185,7 +216,10 @@ while cap.isOpened():
 
                 if right_knee_y < right_hip_y and not spaceLock:
                     spaceLock = True
-                    if keybindings["jump"].startswith("mouse_"):
+                    if keybindings["jump"].endswith("_click"):
+                        mouse.press(get_key(keybindings["jump"]))
+                        print(f"Mouse click: {keybindings['jump']}")
+                    elif keybindings["jump"].startswith("mouse_"):
                         direction = keybindings["jump"].split("_")[1]
                         move_mouse(direction)
                         print(f"Mouse {direction}")
@@ -196,6 +230,8 @@ while cap.isOpened():
                         print(f"Jump: {keybindings['jump']}")
                 elif right_knee_y > right_hip_y:
                     spaceLock = False
+                    if keybindings["jump"].endswith("_click"):
+                        mouse.release(get_key(keybindings["jump"]))
             except (AttributeError, IndexError):
                 pass
 
@@ -206,7 +242,10 @@ while cap.isOpened():
                 left_knee_y = landmarks[25].y
 
                 if left_knee_y < left_hip_y:
-                    if keybindings["squat"].startswith("mouse_"):
+                    if keybindings["squat"].endswith("_click"):
+                        mouse.press(get_key(keybindings["squat"]))
+                        print(f"Mouse click: {keybindings['squat']}")
+                    elif keybindings["squat"].startswith("mouse_"):
                         direction = keybindings["squat"].split("_")[1]
                         move_mouse(direction)
                         print(f"Mouse {direction}")
@@ -215,6 +254,9 @@ while cap.isOpened():
                         keyboard.press(squat_key)
                         keyboard.release(squat_key)
                         print(f"Squat: {keybindings['squat']}")
+                else:
+                    if keybindings["squat"].endswith("_click"):
+                        mouse.release(get_key(keybindings["squat"]))
             except (AttributeError, IndexError):
                 pass
 
