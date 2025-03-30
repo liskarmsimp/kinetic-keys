@@ -8,12 +8,14 @@ from movement_utils import (
     check_head_tilt
 )
 
+
 def can_perform_action(action_name, current_time, bypass_cooldown=False):
     """Check if enough time has passed to perform the action again"""
     if bypass_cooldown:  # For space bar (jump)
         return True
     time_since_last = current_time - last_action_time[action_name]
     return time_since_last >= COOLDOWN
+
 
 def handle_arm_movement(landmarks, side, keybindings, toggles):
     """Handle arm bend detection and actions"""
@@ -28,7 +30,7 @@ def handle_arm_movement(landmarks, side, keybindings, toggles):
         shoulder = [landmarks[shoulder_idx].x, landmarks[shoulder_idx].y]
         elbow = [landmarks[elbow_idx].x, landmarks[elbow_idx].y]
         wrist = [landmarks[wrist_idx].x, landmarks[wrist_idx].y]
-        
+
         arm_angle = calculate_angle(shoulder, elbow, wrist)
         is_bent = arm_angle < 60 and landmarks[wrist_idx].y > landmarks[shoulder_idx].y
         was_bent = previous_states[f"{side}_arm_bend"]
@@ -41,9 +43,10 @@ def handle_arm_movement(landmarks, side, keybindings, toggles):
             handle_input_action(keybindings[f"{side}_arm_bend"], "release")
 
         previous_states[f"{side}_arm_bend"] = is_bent
-            
+
     except (AttributeError, IndexError):
         pass
+
 
 def handle_head_tilt(landmarks, keybindings, toggles, neutral_angle, current_time):
     """Handle head tilt detection and actions"""
@@ -68,10 +71,11 @@ def handle_head_tilt(landmarks, keybindings, toggles, neutral_angle, current_tim
 
         previous_states["tilt_left"] = (tilt_status == "tiltLeft")
         previous_states["tilt_right"] = (tilt_status == "tiltRight")
-        
+
         return neutral_angle, tilt_status
     except (AttributeError, IndexError):
         return neutral_angle, "tiltCenter"
+
 
 def handle_vertical_movements(landmarks, keybindings, toggles, current_time):
     """Handle arm raised and lowered positions"""
@@ -84,8 +88,8 @@ def handle_vertical_movements(landmarks, keybindings, toggles, current_time):
         # Handle arm raised
         if toggles.get("arm_raised", False):
             is_raised = (
-                get_arm_vertical_position(left_shoulder, left_wrist) or 
-                get_arm_vertical_position(right_shoulder, right_wrist)
+                    get_arm_vertical_position(left_shoulder, left_wrist) or
+                    get_arm_vertical_position(right_shoulder, right_wrist)
             )
             was_raised = previous_states["arm_raised"]
 
@@ -100,8 +104,8 @@ def handle_vertical_movements(landmarks, keybindings, toggles, current_time):
         # Handle arm lowered
         if toggles.get("arm_lowered", False):
             is_lowered = (
-                not get_arm_vertical_position(left_shoulder, left_wrist) or 
-                not get_arm_vertical_position(right_shoulder, right_wrist)
+                    not get_arm_vertical_position(left_shoulder, left_wrist) or
+                    not get_arm_vertical_position(right_shoulder, right_wrist)
             )
             was_lowered = previous_states["arm_lowered"]
 
@@ -115,6 +119,7 @@ def handle_vertical_movements(landmarks, keybindings, toggles, current_time):
 
     except (AttributeError, IndexError):
         pass
+
 
 def handle_jump(landmarks, keybindings, toggles, current_time):
     """Handle jump detection"""
@@ -140,29 +145,31 @@ def handle_jump(landmarks, keybindings, toggles, current_time):
     except (AttributeError, IndexError):
         return False
 
-def handle_squat(landmarks, keybindings, toggles, current_time):
-    """Handle squat detection"""
-    if not toggles.get("squat", False):
+
+def handle_left_knee_raise(landmarks, keybindings, toggles, current_time):
+    """Handle left knee raise detection"""
+    if not toggles.get("left_knee_raise", False):  # Update toggle name
         return False
 
     try:
         left_hip_y = landmarks[23].y
         left_knee_y = landmarks[25].y
 
-        is_squatting = left_knee_y < left_hip_y
-        was_squatting = previous_states["squat"]
+        is_raised = left_knee_y < left_hip_y  # Same logic as jump but for left side
+        was_raised = previous_states["left_knee_raise"]  # Update state name
 
-        if is_squatting and not was_squatting and can_perform_action("squat", current_time):
-            handle_input_action(keybindings["squat"], "press")
-            last_action_time["squat"] = current_time
-        elif not is_squatting and was_squatting:
-            handle_input_action(keybindings["squat"], "release")
+        if is_raised and not was_raised and can_perform_action("left_knee_raise", current_time):  # Update action name
+            handle_input_action(keybindings["left_knee_raise"], "press")  # Update keybinding name
+            last_action_time["left_knee_raise"] = current_time  # Update action name
+        elif not is_raised and was_raised:
+            handle_input_action(keybindings["left_knee_raise"], "release")  # Update keybinding name
 
-        previous_states["squat"] = is_squatting
-        return is_squatting
+        previous_states["left_knee_raise"] = is_raised  # Update state name
+        return is_raised
 
     except (AttributeError, IndexError):
         return False
+
 
 def handle_knee_clap(landmarks, keybindings, toggles, current_time):
     """Handle knee clap detection"""
@@ -176,5 +183,5 @@ def handle_knee_clap(landmarks, keybindings, toggles, current_time):
             return True
     except (AttributeError, IndexError):
         pass
-    
+
     return False

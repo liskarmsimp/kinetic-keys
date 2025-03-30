@@ -7,8 +7,8 @@ from movement_handlers import (
     handle_head_tilt,
     handle_vertical_movements,
     handle_jump,
-    handle_squat,
-    handle_knee_clap
+    handle_knee_clap,
+    handle_left_knee_raise
 )
 
 
@@ -61,7 +61,7 @@ def main():
 
             # Handle jump, squat, and knee clap
             handle_jump(landmarks, keybindings, toggles, current_time)
-            handle_squat(landmarks, keybindings, toggles, current_time)
+            handle_left_knee_raise(landmarks, keybindings, toggles, current_time)
             handle_knee_clap(landmarks, keybindings, toggles, current_time)
 
         cv2.imshow("MediaPipe Pose", frame)

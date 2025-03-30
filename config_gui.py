@@ -16,10 +16,10 @@ class KeyBindingGUI:
             "tilt_left": "z",
             "tilt_right": "x",
             "jump": "space",
-            "squat": "down",
+            "left_knee_raise": "down",
             "knee_clap": "shift",
-            "arm_raised": "mouse_up",    # Add this new movement
-            "arm_lowered": "mouse_down"  # Add this new movement
+            "arm_raised": "mouse_up",
+            "arm_lowered": "mouse_down"
         }
 
         # Add dropdown options for mouse and keyboard
@@ -40,7 +40,7 @@ class KeyBindingGUI:
 
         # Default toggle states (all enabled by default)
         self.default_toggles = {key: True for key in self.default_bindings.keys()}
-        
+
         # Load existing toggles or use defaults
         self.current_toggles = self.load_toggles()
         if self.current_toggles is None:
@@ -60,11 +60,11 @@ class KeyBindingGUI:
             "right_arm_bend": "Right Arm Bend",
             "tilt_left": "Tilt Head Left",
             "tilt_right": "Tilt Head Right",
-            "jump": "Jump (Right Knee Raise)",
-            "squat": "Squat",
+            "jump": "Right Knee Raise",  # Updated description to be clearer
+            "left_knee_raise": "Left Knee Raise",  # Changed from "Squat" to "Left Knee Raise"
             "knee_clap": "Knee Clap",
-            "arm_raised": "Arm Raised Position",    # Add this new movement
-            "arm_lowered": "Arm Lowered Position"  # Add this new movement
+            "arm_raised": "Arm Raised Position",
+            "arm_lowered": "Arm Lowered Position"
         }
 
         # Combine all input options for the dropdown
