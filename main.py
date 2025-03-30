@@ -1,4 +1,5 @@
 import cv2
+import time
 from config import load_keybindings, load_toggles, CAMERA_INDEX
 from pose_detection import PoseDetector
 from movement_handlers import (
@@ -10,15 +11,16 @@ from movement_handlers import (
     handle_knee_clap
 )
 
+
 def main():
     # Load configuration
     keybindings = load_keybindings()
     toggles = load_toggles()
-    
+
     # Initialize camera and pose detection
     cap = cv2.VideoCapture(CAMERA_INDEX)
     pose_detector = PoseDetector()
-    
+
     # Initialize state variables
     neutral_angle = 0
 
@@ -69,6 +71,7 @@ def main():
 
     cap.release()
     cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     main()
